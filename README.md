@@ -551,7 +551,7 @@ my $payload = "natas18\" and BINARY substring(password, $index, 1) = \"$char\" a
 
 if the `$char` at `$index` of `password` matches, there will be a delay, if not, it will return fast.
 
-But, the longer delay on non matches makes it slow to linearly break the pass via bruteforce here. So let's attempt a binary search style bruteforce. First we'll have to learn how mysql deals with string comparisons.
+But, the delay on the requests makes it slow to linearly break the pass via bruteforce here. So let's attempt a binary search style bruteforce. First we'll have to learn how mysql deals with string comparisons.
 
 ```sql
 STRCMP(expr1,expr2)
@@ -569,7 +569,7 @@ mysql> SELECT STRCMP('text', 'text');
 So, say we have these characters, in presumably ascending order:
 
 ```perl
-my @possible_characters = split('', '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+my @possible_characters = split('', '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
 ```
 
 Using `strcmp` along with `substring` we can use binary search over the possible chars array to make discovery faster.
@@ -578,15 +578,12 @@ Using `strcmp` along with `substring` we can use binary search over the possible
 my $payload = "natas18\" and strcmp(BINARY substring(password, $index, 1), \"$char\") > 0 and sleep(5) #"
 ```
 
-And say we have already matched a previous prefix of the password, lets say `$flag = aBcDe`.
-
 Then we can, for each of the 32 password characters:
 
-1. Start with `$index = 1` (mysql is **not** zero-indexed).
-2. set a `$lowerBound` and `$upperBound`, which will yield a `$charIndex` and a `$char`.
-3. evaluate if the `$payload` above causes the request to timeout (set a timout lower than the sleep, but fairly high).
-4. if the request takes longer, it means the desired character is in the upper half of the array, so go back to #2, passing the upper half indices.
-5. if, however, the request is fast, we will know that the next character is in fact in the lower half of the possible characters array. Go back to #1 passing the lower half indices.
+1. set a `$lowerBound` and `$upperBound`, get the middle, which will yield a `$charIndex` and a `$char`.
+2. evaluate if the `$payload` above causes the request to timeout (set a timout lower than the sleep, but fairly high).
+3. if the request takes longer, it means the desired character is in the upper half of the array, so go back to #2, passing the upper half indices.
+4. if, however, the request is fast, we will know that the next character is in fact in the lower half of the possible characters array. Go back to #1 passing the lower half indices.
 
 And this was my implementation.
 
